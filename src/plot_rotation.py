@@ -3,7 +3,7 @@ import pylab as plt
 import numpy as np
 from tqdm import tqdm
 
-df = pd.read_csv("../data/measurements.csv")
+df = pd.read_csv("../data/measurements_new.csv")
 
 # 0. Initialize variablles
 e0 = np.array((1, 0, 0), np.longdouble)
@@ -17,23 +17,38 @@ time = 0
 li_out = []
 Time = df.loc[:, 'loggingTime(txt)']
 ran = np.arange(0, Time.iloc[-1], dt)
-i=0
+i = 0
+alphap = None
+
+
+def periodic(x, x_prev, T=2*np.pi):
+    # function is build to allow for x to have values more than pi
+    if x_prev == None:
+        return x
+    else:
+        d = x - x_prev
+        if abs(d) > abs(d + T):
+            x += T
+        elif abs(d) > abs(d - T):
+            x -= T
+        if x >= 2*np.pi: return x-2*np.pi
+        elif x <= -2*np.pi: return x+2*np.pi
+        else: return x
 
 for time in tqdm(ran):
-    # 1. Interpolate projections of rotation in time
     o0 = np.interp(time, Time, df['gyroRotationX(rad/s)'])
     o1 = np.interp(time, Time, df['gyroRotationY(rad/s)'])
     o2 = np.interp(time, Time, df['gyroRotationZ(rad/s)'])
 
-    # 2. Compute total rotational speed in iPhone coordinates (eq. 1)
+    # 1. Compute total rotational speed in iPhone coordinates (eq. 1)
     omega = o0 * e0 + o1 * e1 + o2 * e2
 
-    # 3. update iPhone coordinates based on the rotation (eq. 2)
+    # 2. update iPhone coordinates based on the rotation (eq. 2)
     e0 += dt * np.cross(omega, e0)
     e1 += dt * np.cross(omega, e1)
     e2 += dt * np.cross(omega, e2)
     
-    # 4. Gram-Schmidt transformation on new iPhone coordinates
+    # 3. Gram-Schmidt transformation on new iPhone coordinates
     e0 /= np.linalg.norm(e0)
     e1 -= np.dot(e1, e0) * e0
     e1 /= np.linalg.norm(e1)
@@ -42,7 +57,7 @@ for time in tqdm(ran):
     e2 /= np.linalg.norm(e2)
 
     if i % 10 == 0:
-        # 5. Calculate alpha (eq. 3)
+        # 4. Calculate alpha (eq. 3-4)
 
         e0_proj = e0 - np.dot(e0, zz) * zz
         alphax = np.arccos(np.dot(xx, e0_proj)/np.linalg.norm(e0_proj))
@@ -51,8 +66,8 @@ for time in tqdm(ran):
             alpha = -alphax
         else:
             alpha = alphax
-        
-        # 6. output and visualization
+        alpha = periodic(alpha, alphap)
+        alphap = alpha
         li_out.append([time, alpha])
     time += dt
     i += 1
@@ -61,10 +76,9 @@ df_out = pd.DataFrame(li_out, columns=['time', 'alpha'])
 fig, ax = plt.subplots(1, 1, figsize=(7, 3.5))
 ax.plot(df_out.time, df_out.alpha*180/np.pi, lw=1.5, label=r'$\alpha$')
 ax.axhline(y=0, ls='--', lw=0.5, color='grey')
-ax.set_xlabel('time, sec')
-ax.set_ylabel(r'computed angle, °')
-l = ax.legend(loc='upper left',fontsize=15)
-l.get_frame().set_alpha(None)
+ax.set_xlabel('time, s')
+ax.set_ylabel(r'$\alpha$, °')
 plt.tight_layout()
-plt.savefig('../pics/Figure_1.png', dpi=500)
+df_out.to_csv("../data/output_sensors_n_correction.csv")
+plt.savefig('../pics/new_measurements_no_correction.png', dpi=500, bbox_inches='tight')
 plt.show()

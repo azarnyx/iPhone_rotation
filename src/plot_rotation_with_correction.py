@@ -3,7 +3,7 @@ import pylab as plt
 import numpy as np
 from tqdm import tqdm
 
-df = pd.read_csv("../data/measurements.csv")
+df = pd.read_csv("../data/measurements_new.csv")
 
 # 0. Initialize variablles
 e0 = np.array((1, 0, 0), np.longdouble)
@@ -18,8 +18,23 @@ li_out = []
 Time = df.loc[:, 'loggingTime(txt)']
 ran = np.arange(0, Time.iloc[-1], dt)
 i=0
-
+alphap = None
 fusion_coeff = 1.
+
+
+def periodic(x, x_prev, T=2*np.pi):
+    if x_prev == None:
+        return x
+    else:
+        d = x - x_prev
+        if abs(d) > abs(d + T):
+            x += T
+        elif abs(d) > abs(d - T):
+            x -= T
+        if x >= 2*np.pi: return x-2*np.pi
+        elif x <= -2*np.pi: return x+2*np.pi
+        else: return x
+
 
 for time in tqdm(ran):
     # 1. Interpolate projections of rotation in time
@@ -38,7 +53,11 @@ for time in tqdm(ran):
     acceleration = a0 * e0 + a1 * e1 + a2 * e2
     acceleration /= np.linalg.norm(acceleration)
     omega -= fusion_coeff * np.cross(acceleration, [0, 1, 0])
-
+    omega += fusion_coeff * np.cross(e2, [0, 0, 1])
+    #omega -= fusion_coeff * np.dot(omega, e0)*e1
+    #omega -= fusion_coeff * np.dot(omega, e0)*e2
+    #omega -= fusion_coeff * np.cross(e2, [0,0,1])
+    
     # 3. update iPhone coordinates based on the rotation (eq. 2)
     e0 += dt * np.cross(omega, e0)
     e1 += dt * np.cross(omega, e1)
@@ -63,7 +82,9 @@ for time in tqdm(ran):
             alpha = -alphax
         else:
             alpha = alphax
-        
+        alpha = periodic(alpha, alphap)
+        alphap = alpha
+
         # 6. output and visualization
         li_out.append([time, alpha])
     time += dt
@@ -73,11 +94,9 @@ df_out = pd.DataFrame(li_out, columns=['time', 'alpha'])
 fig, ax = plt.subplots(1, 1, figsize=(7, 3.5))
 ax.plot(df_out.time, df_out.alpha*180/np.pi, lw=1.5, label=r'$\alpha$')
 ax.axhline(y=0, ls='--', lw=0.5, color='grey')
-ax.set_xlabel('time, sec')
-ax.set_ylabel(r'computed angle, °')
-l = ax.legend(loc='upper left',fontsize=15)
-l.get_frame().set_alpha(None)
-plt.ylim([-90, 110])
+ax.set_xlabel('time, s')
+ax.set_ylabel(r'$\alpha$, °')
 plt.tight_layout()
-plt.savefig('../pics/Figure_2_w_correction.png', dpi=500)
+df_out.to_csv("../data/output_sensors_w_correction.csv")
+plt.savefig('../pics/new_measurements_with_correction.png', dpi=500)
 plt.show()
