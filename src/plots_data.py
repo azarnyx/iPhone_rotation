@@ -15,17 +15,8 @@ fig, ax = plt.subplots(len(li), 1, figsize=(7.5, 15))
 
 for ni, i in enumerate(li[0:len(ax)]):
     line = ax[ni].plot(df.loc[:, 'loggingTime(txt)'], df.loc[:, i], color=cls[ni], label=labels[ni], lw=1.5)
-    # if ni == 2:
-    #     ax[ni].set_ylim([-1.1,1.1])
     l = ax[ni].legend(loc='upper left',fontsize=15)
     l.get_frame().set_alpha(None)
 plt.tight_layout()
-plt.savefig('../pics/Figure_0.png', dpi=500)
+plt.savefig('../pics/data_pic.png', dpi=500)
 plt.show()
-
-
-# [212] Klein LA (2004) Sensor and Data Fusion: A Tool for Information Assessment and
-# Decision Making. SPIE Press Book.
-# [213] Hall D, Llinas J (2001) Handbook of Multisensor Data Fusion. CRC.
-# [214] Mitchell HB (2007) Multi-sensor Data Fusion: An Introduction. Springer-Ver-
-# lag, Berlin/Heidelberg
